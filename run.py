@@ -23,9 +23,5 @@ def _test_inner_class():
 
 if __name__ == "__main__":
     config_logging()
-    # jarjar = JarJar()
-    # jarjar.compress(['com.ibm.icu.text.CharsetDetector'], 'space/icu4j-50_2.jar', '.')
-    while True:
-        sleep(1)
-        print('Tapping [%d] ...' % (int(time())), end='\r')
-        os.system('adb shell input touchscreen swipe 2000 1000 2000 1000 100')
+    jarjar = JarJar()
+    jarjar.compress(['com.ibm.icu.text.CharsetDetector'], 'space/icu4j-50_2.jar', 'space/out')

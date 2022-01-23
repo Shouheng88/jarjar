@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import zipfile, hashlib, traceback, time, logging, os
+import zipfile, hashlib, traceback, time, logging, os, platform
 from typing import List
 
 class JarJar:
     def __init__(self) -> None:
-        pass
+        self.is_windows = platform.system().lower() == 'windows'
 
     def compress(self, classes: List[str], jar: str, output: str):
         '''
@@ -86,8 +86,8 @@ class JarJar:
                 self.classes.remove(cur_path)
                 continue
             # Decompile and try to search methods.
-            text = os.popen('javap -c -p %s' % cur_path.replace('$', '\$')).read().strip()
-            if text.find('错误') > 0:
+            text = os.popen('javap -c -p %s' % self._get_class_path_according_to_system(cur_path)).read().strip()
+            if text.find('错误') > 0 or len(text) == 0:
                 logging.error("Error while decompiling [%s]" % (self._simplify_class_path(cur_path)))
                 continue
             # Search in class text file.
@@ -119,13 +119,22 @@ class JarJar:
 
     def _simplify_class_path(self, path: str) -> str:
         '''Simplify the class path.'''
-        return path.removeprefix(self.unzip_to + '/')
+        return path.replace(self.unzip_to + '/', '')
+
+    def _get_class_path_according_to_system(self, path: str) -> str:
+        '''Get class path according to file system.'''
+        if self.is_windows:
+            return path
+        else:
+            return path.replace('$', '\$')
 
     def _pack_classes(self):
         '''Packing casses.'''
         print("Packing classes ...")
         logging.info("Packing classes ...")
-        self.classes = [self._simplify_class_path(cls.replace('$', '\$')) for cls in self.classes]
+        if not os.path.exists(self.output):
+            os.mkdir(self.output)
+        self.classes = [self._simplify_class_path(self._get_class_path_according_to_system(cls)) for cls in self.classes]
         pack_command = 'cd %s && jar cvf %s/final.jar %s ' % (self.unzip_to, self.output, ' '.join(self.classes))
         logging.info("PACK COMMAND: %s" % pack_command)
         os.system(pack_command)
