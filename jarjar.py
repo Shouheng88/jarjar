@@ -3,6 +3,7 @@
 
 import zipfile, hashlib, traceback, time, logging, os, platform
 from typing import List
+from pool import *
 
 class JarJar:
     def __init__(self) -> None:
@@ -19,7 +20,8 @@ class JarJar:
         self.output = os.path.abspath(output)
         self._unzip_jar()
         # self._decompile_classes()
-        self._search()
+        # self._search_by_javap()
+        self._search_by_read_constants()
         self._pack_classes()
 
     def _unzip_jar(self):
@@ -67,10 +69,11 @@ class JarJar:
         # space/d0188fddda195add9dcbf7e91a74484c/unzip/com/ibm/icu/text/CollatorServiceShimCollatorFactory.class
         # space/d0188fddda195add9dcbf7e91a74484c/unzip/com/ibm/icu/text/PluralRulesListBuilder.class
 
-    def _search(self):
+    def _search_by_javap(self):
         '''Deep search and decompile classes.'''
-        print("Searching classes ...")
-        logging.info("Searching classes ...")
+        print("Searching classes by javap ...")
+        logging.info("Searching classes by javap ...")
+        start = int(time.time())
         self.classes = [os.path.join(self.unzip_to, cls.replace('.', '/')) + '.class' for cls in self.classes]
         visits = []
         visits.extend(self.classes)
@@ -98,6 +101,35 @@ class JarJar:
                     if method.find('.') > 0:
                         cls = method.split('.')[0]
                         self._handle_classes(cls, cur_path, visits)
+        logging.info("Searching classes by javap done in [%d]" % (int(time.time())-start))
+        print("Searching classes by javap done in [%d]" % (int(time.time())-start))
+
+    def _search_by_read_constants(self):
+        '''Search by parsing constants.'''
+        print("Searching classes by parsing constant pool ...")
+        logging.info("Searching classes by parsing constant pool ...")
+        start = int(time.time())
+        self.classes = [os.path.join(self.unzip_to, cls.replace('.', '/')) + '.class' for cls in self.classes]
+        visits = []
+        visits.extend(self.classes)
+        count = 0
+        parser = PoolParser()
+        while len(visits) > 0:
+            count = count + 1
+            cur_path = visits.pop()
+            exists = os.path.exists(cur_path)
+            logging.info("Searching under [%d][%s][%s]" % (count, str(exists), self._simplify_class_path(cur_path)))
+            print("Searching under [%d][%s][%s]" % (count, str(exists), self._simplify_class_path(cur_path)), end='\r')
+            # Ignore if the class file not exists.
+            if not exists:
+                self.classes.remove(cur_path)
+                continue
+            # 
+            classes = parser.parse(cur_path)
+            for cls in classes:
+                self._handle_classes(cls, cur_path, visits)
+        logging.info("Searching classes by parsing constant pool done in [%d]" % (int(time.time())-start))
+        print("Searching classes by parsing constant pool done in [%d]" % (int(time.time())-start))
 
     def _handle_classes(self, cls: str, cur_path: str, visits: List[str]):
         '''Handle classes.'''
