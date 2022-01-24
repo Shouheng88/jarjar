@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import zipfile, hashlib, traceback, time, logging, os, platform
+import zipfile, hashlib, traceback, time, logging, os, platform, shutil
 from typing import List
 from pool import *
 
@@ -19,6 +19,7 @@ class JarJar:
         self.classes = classes
         self.output = os.path.abspath(output)
         self._unzip_jar()
+        self.copy_to = 'space/final'
         # self._decompile_classes()
         # self._search_by_javap()
         self._search_by_read_constants()
@@ -124,7 +125,7 @@ class JarJar:
             if not exists:
                 self.classes.remove(cur_path)
                 continue
-            # 
+            # Parse classes from class constant pool.
             classes = parser.parse(cur_path)
             for cls in classes:
                 self._handle_classes(cls, cur_path, visits)
@@ -167,6 +168,14 @@ class JarJar:
         if not os.path.exists(self.output):
             os.mkdir(self.output)
         self.classes = [self._simplify_class_path(self._get_class_path_according_to_system(cls)) for cls in self.classes]
-        pack_command = 'cd %s && jar cvf %s/final.jar %s ' % (self.unzip_to, self.output, ' '.join(self.classes))
+        # Copy all filted classes to a directory.
+        for cls in self.classes:
+            dst = cls.replace(self.unzip_to, self.copy_to)
+            par = os.path.dirname(dst)
+            if not os.path.exists(par):
+                os.makedirs(par)
+            shutil.copyfile(cls, dst)
+        # Get into the copied directory and use jar to package the directory.
+        pack_command = 'cd %s && jar cvf %s/final.jar %s' % (self.copy_to, self.output, '.')
         logging.info("PACK COMMAND: %s" % pack_command)
-        os.system(pack_command)
+        ret = os.popen(pack_command).read().strip()
