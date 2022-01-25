@@ -167,7 +167,7 @@ class JarJar:
         logging.info("Packing classes ...")
         if not os.path.exists(self.output):
             os.mkdir(self.output)
-        self.classes = [self._simplify_class_path(self._get_class_path_according_to_system(cls)) for cls in self.classes]
+        # self.classes = [self._simplify_class_path(self._get_class_path_according_to_system(cls)) for cls in self.classes]
         # Copy all filted classes to a directory.
         for cls in self.classes:
             dst = cls.replace(self.unzip_to, self.copy_to)
